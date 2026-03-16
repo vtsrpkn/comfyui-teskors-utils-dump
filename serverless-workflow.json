@@ -1,0 +1,459 @@
+{
+  "22": {
+    "inputs": {
+      "model": "WanModel.safetensors",
+      "base_precision": "fp16",
+      "quantization": "fp8_e4m3fn",
+      "load_device": "offload_device",
+      "attention_mode": "sdpa",
+      "rms_norm_function": "default"
+    },
+    "class_type": "WanVideoModelLoader",
+    "_meta": {
+      "title": "WanVideo Model Loader"
+    }
+  },
+  "28": {
+    "inputs": {
+      "enable_vae_tiling": false,
+      "tile_x": 272,
+      "tile_y": 272,
+      "tile_stride_x": 144,
+      "tile_stride_y": 128,
+      "normalization": "default",
+      "vae": [
+        "349",
+        0
+      ],
+      "samples": [
+        "273",
+        0
+      ]
+    },
+    "class_type": "WanVideoDecode",
+    "_meta": {
+      "title": "WanVideo Decode"
+    }
+  },
+  "59": {
+    "inputs": {
+      "clip_name": "klip_vision.safetensors"
+    },
+    "class_type": "CLIPVisionLoader",
+    "_meta": {
+      "title": "Загрузить видение CLIP"
+    }
+  },
+  "68": {
+    "inputs": {
+      "width": [
+        "309",
+        1
+      ],
+      "height": [
+        "309",
+        2
+      ],
+      "upscale_method": "lanczos",
+      "keep_proportion": "crop",
+      "pad_color": "0, 0, 0",
+      "crop_position": "center",
+      "divisible_by": 16,
+      "device": "cpu",
+      "image": [
+        "76",
+        0
+      ]
+    },
+    "class_type": "ImageResizeKJv2",
+    "_meta": {
+      "title": "Resize Image v2"
+    }
+  },
+  "75": {
+    "inputs": {
+      "video": "tiktok_pelmentossschaan_76044954806046098134.mp4",
+      "force_rate": 30,
+      "custom_width": 720,
+      "custom_height": 1280,
+      "frame_load_cap": 0,
+      "skip_first_frames": 0,
+      "select_every_nth": 1,
+      "format": "Wan"
+    },
+    "class_type": "VHS_LoadVideo",
+    "_meta": {
+      "title": "Load Video (Upload) 🎥🅥🅗🅢"
+    }
+  },
+  "76": {
+    "inputs": {
+      "image": "hf_20260212_191730_b3485ab1-deff-46b5-8168-7bf9b3c7bbc2 (1).webp"
+    },
+    "class_type": "LoadImage",
+    "_meta": {
+      "title": "Загрузить изображение"
+    }
+  },
+  "78": {
+    "inputs": {
+      "model": [
+        "22",
+        0
+      ],
+      "lora": [
+        "354",
+        0
+      ]
+    },
+    "class_type": "WanVideoSetLoRAs",
+    "_meta": {
+      "title": "WanVideo Set LoRAs"
+    }
+  },
+  "89": {
+    "inputs": {
+      "width": [
+        "309",
+        1
+      ],
+      "height": [
+        "309",
+        2
+      ],
+      "face_padding": 0,
+      "model": [
+        "90",
+        0
+      ],
+      "images": [
+        "75",
+        0
+      ]
+    },
+    "class_type": "PoseAndFaceDetection",
+    "_meta": {
+      "title": "Pose and Face Detection"
+    }
+  },
+  "90": {
+    "inputs": {
+      "vitpose_model": "vitpose_h_wholebody_model.onnx",
+      "yolo_model": "yolov10m.onnx",
+      "onnx_device": "CUDAExecutionProvider"
+    },
+    "class_type": "OnnxDetectionModelLoader",
+    "_meta": {
+      "title": "ONNX Detection Model Loader"
+    }
+  },
+  "158": {
+    "inputs": {
+      "width": 720,
+      "height": 1280,
+      "upscale_method": "lanczos",
+      "keep_proportion": "crop",
+      "pad_color": "0, 0, 0",
+      "crop_position": "center",
+      "divisible_by": 16,
+      "device": "cpu",
+      "image": [
+        "28",
+        0
+      ]
+    },
+    "class_type": "ImageResizeKJv2",
+    "_meta": {
+      "title": "Resize Image v2"
+    }
+  },
+  "270": {
+    "inputs": {
+      "width": [
+        "309",
+        1
+      ],
+      "height": [
+        "309",
+        2
+      ],
+      "num_frames": [
+        "75",
+        1
+      ],
+      "force_offload": false,
+      "frame_window_size": 81,
+      "colormatch": "disabled",
+      "pose_strength": 0.7,
+      "face_strength": 0.6,
+      "tiled_vae": false,
+      "vae": [
+        "349",
+        0
+      ],
+      "clip_embeds": [
+        "271",
+        0
+      ],
+      "ref_images": [
+        "68",
+        0
+      ],
+      "pose_images": [
+        "532",
+        0
+      ],
+      "face_images": [
+        "89",
+        1
+      ]
+    },
+    "class_type": "WanVideoAnimateEmbeds",
+    "_meta": {
+      "title": "WanVideo Animate Embeds"
+    }
+  },
+  "271": {
+    "inputs": {
+      "strength_1": 1,
+      "strength_2": 1,
+      "crop": "center",
+      "combine_embeds": "average",
+      "force_offload": true,
+      "tiles": 0,
+      "ratio": 0.5,
+      "clip_vision": [
+        "59",
+        0
+      ],
+      "image_1": [
+        "68",
+        0
+      ]
+    },
+    "class_type": "WanVideoClipVisionEncode",
+    "_meta": {
+      "title": "WanVideo ClipVision Encode"
+    }
+  },
+  "273": {
+    "inputs": {
+      "steps": 4,
+      "cfg": 1,
+      "shift": 5,
+      "seed": 694910383220929,
+      "force_offload": true,
+      "scheduler": "dpm++_sde",
+      "riflex_freq_index": 0,
+      "denoise_strength": 0.75,
+      "batched_cfg": "",
+      "rope_function": "comfy",
+      "start_step": 0,
+      "end_step": -1,
+      "add_noise_to_samples": false,
+      "model": [
+        "78",
+        0
+      ],
+      "image_embeds": [
+        "270",
+        0
+      ],
+      "text_embeds": [
+        "490",
+        0
+      ]
+    },
+    "class_type": "WanVideoSampler",
+    "_meta": {
+      "title": "WanVideo Sampler"
+    }
+  },
+  "309": {
+    "inputs": {
+      "image": [
+        "75",
+        0
+      ]
+    },
+    "class_type": "GetImageSizeAndCount",
+    "_meta": {
+      "title": "Get Image Size & Count"
+    }
+  },
+  "319": {
+    "inputs": {
+      "frame_rate": 30,
+      "loop_count": 0,
+      "filename_prefix": "video/SteadyDancer",
+      "format": "video/h264-mp4",
+      "pix_fmt": "yuv420p",
+      "crf": 19,
+      "save_metadata": false,
+      "trim_to_audio": true,
+      "pingpong": false,
+      "save_output": true,
+      "images": [
+        "158",
+        0
+      ],
+      "audio": [
+        "75",
+        2
+      ]
+    },
+    "class_type": "VHS_VideoCombine",
+    "_meta": {
+      "title": "Текстура кожи"
+    }
+  },
+  "349": {
+    "inputs": {
+      "model_name": "vae.safetensors",
+      "precision": "fp16",
+      "use_cpu_cache": false,
+      "verbose": false
+    },
+    "class_type": "WanVideoVAELoader",
+    "_meta": {
+      "title": "WanVideo VAE Loader"
+    }
+  },
+  "354": {
+    "inputs": {
+      "lora_0": "light.safetensors",
+      "strength_0": 1,
+      "lora_1": "wan.reworked.safetensors",
+      "strength_1": 0.3,
+      "lora_2": "WanPusa.safetensors",
+      "strength_2": 0.9,
+      "lora_3": "WanFun.reworked.safetensors",
+      "strength_3": 0.5,
+      "lora_4": "none",
+      "strength_4": 0,
+      "low_mem_load": false,
+      "merge_loras": false
+    },
+    "class_type": "WanVideoLoraSelectMulti",
+    "_meta": {
+      "title": "WanVideo Lora Select Multi"
+    }
+  },
+  "488": {
+    "inputs": {
+      "text": "色调艳丽，过曝，静态，细节模糊不清，字幕，风格，作品，画作，画面，静止，整体发灰，最差质量，低质量，JPEG压缩残留，丑陋的，残缺的，多余的手指，画得不好的手部，画得不好的脸部，畸形的，毁容的，形态畸形的肢体，手指融合，静止不动的画面，杂乱的背景，三条腿，背景人很多，倒着走",
+      "clip": [
+        "491",
+        0
+      ]
+    },
+    "class_type": "CLIPTextEncode",
+    "_meta": {
+      "title": "Кодирование текста CLIP (Запрос)"
+    }
+  },
+  "490": {
+    "inputs": {
+      "positive": [
+        "493",
+        0
+      ],
+      "negative": [
+        "488",
+        0
+      ]
+    },
+    "class_type": "WanVideoTextEmbedBridge",
+    "_meta": {
+      "title": "WanVideo TextEmbed Bridge"
+    }
+  },
+  "491": {
+    "inputs": {
+      "clip_name": "text_enc.safetensors",
+      "type": "wan",
+      "device": "default"
+    },
+    "class_type": "CLIPLoader",
+    "_meta": {
+      "title": "Загрузить CLIP"
+    }
+  },
+  "493": {
+    "inputs": {
+      "text": "woman dancing, static locked-off shot. Camera fixed on tripod, completely still, no camera movement, no pan, no tilt, no zoom, no dolly, no tracking, no handheld motion. Single static frame.",
+      "clip": [
+        "491",
+        0
+      ]
+    },
+    "class_type": "CLIPTextEncode",
+    "_meta": {
+      "title": "Кодирование текста CLIP (Запрос)"
+    }
+  },
+  "505": {
+    "inputs": {
+      "frame_rate": 30,
+      "loop_count": 0,
+      "filename_prefix": "vitpose",
+      "format": "video/h264-mp4",
+      "pix_fmt": "yuv420p",
+      "crf": 19,
+      "save_metadata": false,
+      "trim_to_audio": false,
+      "pingpong": false,
+      "save_output": false,
+      "images": [
+        "532",
+        0
+      ]
+    },
+    "class_type": "VHS_VideoCombine",
+    "_meta": {
+      "title": "Video Combine 🎥🅥🅗🅢"
+    }
+  },
+  "532": {
+    "inputs": {
+      "filter_extra_people": true,
+      "smooth_alpha": 0.7,
+      "gap_frames": 12,
+      "min_run_frames": 2,
+      "conf_thresh_body": 0.2,
+      "conf_thresh_hands": 0.5,
+      "pose_data": [
+        "89",
+        0
+      ]
+    },
+    "class_type": "TSPoseDataSmoother",
+    "_meta": {
+      "title": "TS Pose Data Smoother"
+    }
+  },
+  "533": {
+    "inputs": {
+      "width": [
+        "309",
+        1
+      ],
+      "height": [
+        "309",
+        2
+      ],
+      "retarget_padding": 16,
+      "body_stick_width": -1,
+      "hand_stick_width": -1,
+      "draw_head": "True",
+      "pose_data": [
+        "89",
+        0
+      ]
+    },
+    "class_type": "DrawViTPose",
+    "_meta": {
+      "title": "Draw ViT Pose"
+    }
+  }
+}
