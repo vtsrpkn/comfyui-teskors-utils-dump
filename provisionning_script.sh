@@ -1,16 +1,19 @@
 #!/bin/bash
-set -e
-source /venv/main/bin/activate
 
-WORKSPACE=${WORKSPACE:-/workspace}
-COMFYUI_DIR="${WORKSPACE}/ComfyUI"
+set -euo pipefail
 
-echo "=== ComfyUI запускает ( x-mode) ==="
+WORKSPACE_DIR="${WORKSPACE:-/workspace}"
+COMFYUI_DIR="${WORKSPACE_DIR}/ComfyUI"
+CUSTOM_NODES_DIR="${COMFYUI_DIR}/custom_nodes"
+MODELS_DIR="${COMFYUI_DIR}/models"
+MODEL_LOG="${MODEL_LOG:-/var/log/portal/comfyui.log}"
+HF_SEMAPHORE_DIR="${WORKSPACE_DIR}/hf_download_sem_$$"
+HF_MAX_PARALLEL="${HF_MAX_PARALLEL:-3}"
 
-APT_PACKAGES=()           # если нужно — добавь sudo apt install ...
-PIP_PACKAGES=()           # глобальные pip пакеты, если сверх requirements
+APT_PACKAGES=()
+PIP_PACKAGES=()
 
-NODES=(
+REQUIRED_NODES=(
     "https://github.com/kijai/ComfyUI-WanVideoWrapper"
     "https://github.com/chflame163/ComfyUI_LayerStyle"
     "https://github.com/yolain/ComfyUI-Easy-Use"
@@ -26,164 +29,241 @@ NODES=(
     "https://github.com/teskor-hub/comfyui-teskors-utils.git"
 )
 
-# ЗАГРУЗКА ФАЙЛОВ НУЖНЫХ
-CLIP_MODELS=(
-    "https://huggingface.co/wdsfdsdf/OFMHUB/resolve/main/klip_vision.safetensors"
-)
-CLIPS=(
-"https://huggingface.co/Comfy-Org/Wan_2.1_ComfyUI_repackaged/resolve/main/split_files/clip_vision/clip_vision_h.safetensors"
-)
-
-TEXT_ENCODERS=(
-"https://huggingface.co/wdsfdsdf/OFMHUB/resolve/main/text_enc.safetensors"
-)
-
-UNET_MODELS=(
-    "https://huggingface.co/Comfy-Org/z_image_turbo/resolve/main/split_files/diffusion_models/z_image_turbo_bf16.safetensors"
-)
-
-VAE_MODELS=(
-    "https://huggingface.co/wdsfdsdf/OFMHUB/resolve/main/vae.safetensors"
+HF_MODELS=(
+    "https://huggingface.co/wdsfdsdf/OFMHUB/resolve/main/klip_vision.safetensors|$MODELS_DIR/clip_vision/klip_vision.safetensors"
+    "https://huggingface.co/Comfy-Org/Wan_2.1_ComfyUI_repackaged/resolve/main/split_files/clip_vision/clip_vision_h.safetensors|$MODELS_DIR/clip_vision/clip_vision_h.safetensors"
+    "https://huggingface.co/wdsfdsdf/OFMHUB/resolve/main/text_enc.safetensors|$MODELS_DIR/text_encoders/text_enc.safetensors"
+    "https://huggingface.co/Comfy-Org/z_image_turbo/resolve/main/split_files/diffusion_models/z_image_turbo_bf16.safetensors|$MODELS_DIR/diffusion_models/z_image_turbo_bf16.safetensors"
+    "https://huggingface.co/wdsfdsdf/OFMHUB/resolve/main/vae.safetensors|$MODELS_DIR/vae/vae.safetensors"
+    "https://huggingface.co/Wan-AI/Wan2.2-Animate-14B/resolve/main/process_checkpoint/det/yolov10m.onnx|$MODELS_DIR/detection/yolov10m.onnx"
+    "https://huggingface.co/Kijai/vitpose_comfy/resolve/main/onnx/vitpose_h_wholebody_data.bin|$MODELS_DIR/detection/vitpose_h_wholebody_data.bin"
+    "https://huggingface.co/Kijai/vitpose_comfy/resolve/main/onnx/vitpose_h_wholebody_model.onnx|$MODELS_DIR/detection/vitpose_h_wholebody_model.onnx"
+    "https://huggingface.co/wdsfdsdf/OFMHUB/resolve/main/WanFun.reworked.safetensors|$MODELS_DIR/loras/WanFun.reworked.safetensors"
+    "https://huggingface.co/wdsfdsdf/OFMHUB/resolve/main/light.safetensors|$MODELS_DIR/loras/light.safetensors"
+    "https://huggingface.co/wdsfdsdf/OFMHUB/resolve/main/WanPusa.safetensors|$MODELS_DIR/loras/WanPusa.safetensors"
+    "https://huggingface.co/wdsfdsdf/OFMHUB/resolve/main/wan.reworked.safetensors|$MODELS_DIR/loras/wan.reworked.safetensors"
+    "https://huggingface.co/wdsfdsdf/OFMHUB/resolve/main/WanModel.safetensors|$MODELS_DIR/diffusion_models/WanModel.safetensors"
 )
 
-DETECTION_MODELS=(
-"https://huggingface.co/Wan-AI/Wan2.2-Animate-14B/resolve/main/process_checkpoint/det/yolov10m.onnx"
-"https://huggingface.co/Kijai/vitpose_comfy/resolve/main/onnx/vitpose_h_wholebody_data.bin"
-"https://huggingface.co/Kijai/vitpose_comfy/resolve/main/onnx/vitpose_h_wholebody_model.onnx"
-)
+mkdir -p "$(dirname "$MODEL_LOG")"
 
-LORAS=(
-"https://huggingface.co/wdsfdsdf/OFMHUB/resolve/main/WanFun.reworked.safetensors"
-"https://huggingface.co/wdsfdsdf/OFMHUB/resolve/main/light.safetensors"
-"https://huggingface.co/wdsfdsdf/OFMHUB/resolve/main/light.safetensors"
-"https://huggingface.co/wdsfdsdf/OFMHUB/resolve/main/WanPusa.safetensors"
-"https://huggingface.co/wdsfdsdf/OFMHUB/resolve/main/wan.reworked.safetensors"
-)
-
-CLIP_VISION=(
-"https://huggingface.co/wdsfdsdf/OFMHUB/resolve/main/klip_vision.safetensors"
-)
-
-DEFFUSION=(
-"https://huggingface.co/wdsfdsdf/OFMHUB/resolve/main/WanModel.safetensors"
-
-)
-### ─────────────────────────────────────────────
-### DO NOT EDIT BELOW UNLESS YOU KNOW WHAT YOU ARE DOING
-### ─────────────────────────────────────────────
-
-function provisioning_start() {
-    echo ""
-    echo "##############################################"
-    echo "# ебашим жоска и мрачно                      #"
-    echo "# gazik X-MODE setup 2025-2026               #"
-    echo "# бабки бабки                                #"
-    echo "##############################################"
-    echo ""
-
-    provisioning_get_apt_packages
-    provisioning_clone_comfyui
-    provisioning_install_base_reqs
-    provisioning_get_nodes
-    provisioning_get_pip_packages
-
-    provisioning_get_files "${COMFYUI_DIR}/models/clip"               "${CLIP_MODELS[@]}"
-    provisioning_get_files "${COMFYUI_DIR}/models/clip_vision"        "${CLIP_VISION[@]}"
-    provisioning_get_files "${COMFYUI_DIR}/models/text_encoders"      "${TEXT_ENCODERS[@]}"
-    provisioning_get_files "${COMFYUI_DIR}/models/vae"                "${VAE_MODELS[@]}"
-    provisioning_get_files "${COMFYUI_DIR}/models/diffusion_models"   "${DIFFUSION_MODELS[@]}"
-
-    provisioning_get_files "${COMFYUI_DIR}/models/detection"   "${DETECTION_MODELS[@]}"
-    provisioning_get_files "${COMFYUI_DIR}/models/loras"   "${LORAS[@]}"
-    provisioning_get_files "${COMFYUI_DIR}/models/diffusion_models"     "${DEFFUSION[@]}"
-
-    echo ""
-    echo "Газик настроил → Starting ComfyUI..."
-    echo ""
+log() {
+    local message="[$(date '+%Y-%m-%d %H:%M:%S')] $1"
+    echo "$message" | tee -a "$MODEL_LOG"
 }
 
-function provisioning_clone_comfyui() {
-    if [[ ! -d "${COMFYUI_DIR}" ]]; then
-        echo "Газик клонирует ComfyUI..."
-        git clone https://github.com/comfyanonymous/ComfyUI.git "${COMFYUI_DIR}"
+script_cleanup() {
+    rm -rf "$HF_SEMAPHORE_DIR"
+    find "$MODELS_DIR" -name "*.lock" -type f -mmin +60 -delete 2>/dev/null || true
+}
+
+script_error() {
+    local exit_code=$?
+    local line_number=$1
+    log "[ERROR] Provisioning failed at line $line_number with exit code $exit_code"
+    exit "$exit_code"
+}
+
+trap script_cleanup EXIT
+trap 'script_error $LINENO' ERR
+
+acquire_slot() {
+    local prefix="$1"
+    local max_slots="$2"
+
+    while true; do
+        local count
+        count=$(find "$(dirname "$prefix")" -name "$(basename "$prefix")_*" 2>/dev/null | wc -l)
+        if [[ "$count" -lt "$max_slots" ]]; then
+            local slot="${prefix}_$$_$RANDOM"
+            touch "$slot"
+            echo "$slot"
+            return 0
+        fi
+        sleep 0.5
+    done
+}
+
+release_slot() {
+    rm -f "$1"
+}
+
+install_apt_packages() {
+    if [[ ${#APT_PACKAGES[@]} -eq 0 ]]; then
+        return 0
     fi
-    cd "${COMFYUI_DIR}"
+
+    log "Installing apt packages"
+    sudo apt-get update
+    sudo apt-get install -y "${APT_PACKAGES[@]}"
 }
 
-function provisioning_install_base_reqs() {
-    if [[ -f requirements.txt ]]; then
-        echo "Газик установливает base requirements..."
-        pip install --no-cache-dir -r requirements.txt
+install_extra_pip_packages() {
+    if [[ ${#PIP_PACKAGES[@]} -eq 0 ]]; then
+        return 0
     fi
+
+    log "Installing extra pip packages"
+    pip install --no-cache-dir "${PIP_PACKAGES[@]}"
 }
 
-function provisioning_get_apt_packages() {
-    if [[ ${#APT_PACKAGES[@]} -gt 0 ]]; then
-        echo "Газик устанавливает apt packages..."
-        sudo apt update && sudo apt install -y "${APT_PACKAGES[@]}"
+ensure_comfyui_dir() {
+    if [[ -d "$COMFYUI_DIR" ]]; then
+        return 0
     fi
+
+    log "ComfyUI not found in $COMFYUI_DIR, cloning it"
+    git clone https://github.com/comfyanonymous/ComfyUI.git "$COMFYUI_DIR"
 }
 
-function provisioning_get_pip_packages() {
-    if [[ ${#PIP_PACKAGES[@]} -gt 0 ]]; then
-        echo "Газик устанавливает extra pip packages..."
-        pip install --no-cache-dir "${PIP_PACKAGES[@]}"
+install_comfyui_requirements() {
+    if [[ ! -f "$COMFYUI_DIR/requirements.txt" ]]; then
+        return 0
     fi
+
+    log "Installing base ComfyUI requirements"
+    pip install --no-cache-dir -r "$COMFYUI_DIR/requirements.txt"
 }
 
-function provisioning_get_nodes() {
-    mkdir -p "${COMFYUI_DIR}/custom_nodes"
-    cd "${COMFYUI_DIR}/custom_nodes"
+install_custom_nodes() {
+    mkdir -p "$CUSTOM_NODES_DIR"
 
-    for repo in "${NODES[@]}"; do
-        dir="${repo##*/}"
-        path="./${dir}"
+    for repo in "${REQUIRED_NODES[@]}"; do
+        local dir path
+        dir="$(basename "$repo" .git)"
+        path="${CUSTOM_NODES_DIR}/${dir}"
 
-        if [[ -d "$path" ]]; then
-            echo "Updating node: $dir"
-            (cd "$path" && git pull --ff-only 2>/dev/null || { git fetch && git reset --hard origin/main; })
+        if [[ -d "$path/.git" ]]; then
+            log "Updating node repo: $dir"
+            git -C "$path" pull --ff-only || log "[WARN] Could not fast-forward $dir, keeping current checkout"
         else
-            echo "Cloning node: $dir"
-            git clone "$repo" "$path" --recursive || echo " [!] Clone failed: $repo"
+            log "Cloning node repo: $dir"
+            git clone --recursive "$repo" "$path"
         fi
 
-        requirements="${path}/requirements.txt"
-        if [[ -f "$requirements" ]]; then
-            echo "Installing deps for $dir..."
-            pip install --no-cache-dir -r "$requirements" || echo " [!] pip requirements failed for $dir"
+        if [[ -f "$path/requirements.txt" ]]; then
+            log "Installing Python deps for $dir"
+            pip install --no-cache-dir -r "$path/requirements.txt"
         fi
     done
 }
 
-function provisioning_get_files() {
-    if [[ $# -lt 2 ]]; then return; fi
-    local dir="$1"
-    shift
-    local files=("$@")
+download_hf_file() {
+    local url="$1"
+    local output_path="$2"
+    local lockfile="${output_path}.lock"
+    local max_retries=5
+    local retry_delay=2
+    local slot
+    slot=$(acquire_slot "$HF_SEMAPHORE_DIR/hf" "$HF_MAX_PARALLEL")
 
-    mkdir -p "$dir"
-    echo "Скачивание ${#files[@]} file(s) → $dir..."
+    mkdir -p "$(dirname "$output_path")"
 
-    for url in "${files[@]}"; do
-        echo "→ $url"
-        local auth_header=""
-        if [[ -n "$HF_TOKEN" && "$url" =~ huggingface\.co ]]; then
-            auth_header="--header=Authorization: Bearer $HF_TOKEN"
-        elif [[ -n "$CIVITAI_TOKEN" && "$url" =~ civitai\.com ]]; then
-            auth_header="--header=Authorization: Bearer $CIVITAI_TOKEN"
+    (
+        if ! flock -x -w 300 200; then
+            log "[ERROR] Could not acquire lock for $output_path after 300s"
+            release_slot "$slot"
+            exit 1
         fi
 
-        wget $auth_header -nc --content-disposition --show-progress -e dotbytes=4M -P "$dir" "$url" || echo " [!] Download failed: $url"
-        echo ""
-    done
+        if [[ -f "$output_path" ]]; then
+            log "File already exists: $output_path"
+            release_slot "$slot"
+            exit 0
+        fi
+
+        local repo file_path
+        repo=$(echo "$url" | sed -n 's|https://huggingface.co/\([^/]*/[^/]*\)/resolve/.*|\1|p')
+        file_path=$(echo "$url" | sed -n 's|https://huggingface.co/[^/]*/[^/]*/resolve/[^/]*/\(.*\)|\1|p')
+
+        if [[ -z "$repo" || -z "$file_path" ]]; then
+            log "[ERROR] Invalid Hugging Face URL: $url"
+            release_slot "$slot"
+            exit 1
+        fi
+
+        local temp_dir
+        temp_dir=$(mktemp -d)
+        local attempt=1
+        local current_delay=$retry_delay
+
+        while [[ $attempt -le $max_retries ]]; do
+            log "Downloading $repo/$file_path (attempt $attempt/$max_retries)"
+
+            if hf download "$repo" \
+                "$file_path" \
+                --local-dir "$temp_dir" \
+                --cache-dir "$temp_dir/.cache" 2>&1 | tee -a "$MODEL_LOG"; then
+                if [[ -f "$temp_dir/$file_path" ]]; then
+                    mv "$temp_dir/$file_path" "$output_path"
+                    rm -rf "$temp_dir"
+                    release_slot "$slot"
+                    log "Downloaded: $output_path"
+                    exit 0
+                fi
+            fi
+
+            log "Retrying $url in ${current_delay}s"
+            sleep "$current_delay"
+            current_delay=$((current_delay * 2))
+            attempt=$((attempt + 1))
+        done
+
+        rm -rf "$temp_dir"
+        release_slot "$slot"
+        exit 1
+    ) 200>"$lockfile"
+
+    local result=$?
+    rm -f "$lockfile"
+    return $result
 }
 
-# Запуск provisioning если не отключен
-if [[ ! -f /.noprovisioning ]]; then
-    provisioning_start
-fi
+download_models() {
+    local pids=()
 
-# Запуск ComfyUI
-echo "=== Запускаем ComfyUI ==="
-cd "${COMFYUI_DIR}"
-python main.py --listen 0.0.0.0 --port 8188
+    for model in "${HF_MODELS[@]}"; do
+        local url output_path
+        url="${model%%|*}"
+        output_path="${model##*|}"
+
+        download_hf_file "$url" "$output_path" &
+        pids+=($!)
+    done
+
+    local failed=0
+    for pid in "${pids[@]}"; do
+        if ! wait "$pid"; then
+            log "[ERROR] Download process $pid failed"
+            failed=1
+        fi
+    done
+
+    if [[ "$failed" -ne 0 ]]; then
+        exit 1
+    fi
+}
+
+main() {
+    log "Starting interactive ComfyUI provisioning"
+
+    if [[ -f /venv/main/bin/activate ]]; then
+        # shellcheck source=/dev/null
+        . /venv/main/bin/activate
+    fi
+
+    rm -rf "$HF_SEMAPHORE_DIR"
+    mkdir -p "$HF_SEMAPHORE_DIR"
+    mkdir -p "$MODELS_DIR"/{clip,clip_vision,text_encoders,vae,diffusion_models,loras,detection}
+
+    install_apt_packages
+    ensure_comfyui_dir
+    install_comfyui_requirements
+    install_custom_nodes
+    install_extra_pip_packages
+    download_models
+
+    log "Provisioning complete. ComfyUI startup is handled by the base image entrypoint."
+}
+
+main

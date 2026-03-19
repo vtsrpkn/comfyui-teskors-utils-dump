@@ -10,7 +10,9 @@ INPUTS_DIR="${COMFYUI_DIR}/input"
 WORKFLOWS_DIR="${COMFYUI_DIR}/user/default/workflows"
 MODEL_LOG="${MODEL_LOG:-/var/log/portal/comfyui.log}"
 WORKFLOW_API_URL="${WORKFLOW_API_URL:-}"
+WORKFLOW_JSON_PATH="${WORKFLOW_JSON_PATH:-$CUSTOM_NODES_DIR/comfyui-teskors-utils/serverless-workflow.json}"
 BENCHMARK_WORKFLOW_API_URL="${BENCHMARK_WORKFLOW_API_URL:-$WORKFLOW_API_URL}"
+BENCHMARK_WORKFLOW_JSON_PATH="${BENCHMARK_WORKFLOW_JSON_PATH:-$WORKFLOW_JSON_PATH}"
 HF_SEMAPHORE_DIR="${WORKSPACE_DIR}/hf_download_sem_$$"
 HF_MAX_PARALLEL=3
 
@@ -200,15 +202,34 @@ download_models() {
     fi
 }
 
-write_payload_examples() {
-    if [[ -z "$WORKFLOW_API_URL" ]]; then
-        log "WORKFLOW_API_URL is not set; skipping payload example and benchmark workflow."
-        return 0
+load_workflow_json() {
+    local url="$1"
+    local path="$2"
+    local label="$3"
+    local workflow_json=""
+
+    if [[ -n "$url" ]]; then
+        log "Loading $label workflow from $url"
+        workflow_json="$(curl -fsSL "$url")"
+    elif [[ -f "$path" ]]; then
+        log "Loading $label workflow from $path"
+        workflow_json="$(cat "$path")"
+    else
+        return 1
     fi
 
-    local workflow_json
-    workflow_json="$(curl -fsSL "$WORKFLOW_API_URL")"
     echo "$workflow_json" | python -m json.tool >/dev/null
+    printf '%s' "$workflow_json"
+}
+
+write_payload_examples() {
+    local workflow_json=""
+    local benchmark_json=""
+
+    if ! workflow_json="$(load_workflow_json "$WORKFLOW_API_URL" "$WORKFLOW_JSON_PATH" "payload")"; then
+        log "No payload workflow source configured; skipping payload and benchmark workflow generation."
+        return 0
+    fi
 
     rm -f /opt/comfyui-api-wrapper/payloads/*
     cat > /opt/comfyui-api-wrapper/payloads/ofmbando.json <<EOF
@@ -220,19 +241,19 @@ write_payload_examples() {
 }
 EOF
 
-    if [[ -n "$BENCHMARK_WORKFLOW_API_URL" ]]; then
-        local benchmark_json
-        benchmark_json="$(curl -fsSL "$BENCHMARK_WORKFLOW_API_URL")"
-        echo "$benchmark_json" | python -m json.tool >/dev/null
-
-        local benchmark_dir="$WORKSPACE_DIR/vast-pyworker/workers/comfyui-json/misc"
-        while [[ ! -d "$benchmark_dir" ]]; do
-            sleep 1
-        done
-
-        echo "$benchmark_json" > "$benchmark_dir/benchmark.json"
-        log "Wrote benchmark workflow to $benchmark_dir/benchmark.json"
+    if [[ -n "$BENCHMARK_WORKFLOW_API_URL" ]] || [[ -f "$BENCHMARK_WORKFLOW_JSON_PATH" ]]; then
+        benchmark_json="$(load_workflow_json "$BENCHMARK_WORKFLOW_API_URL" "$BENCHMARK_WORKFLOW_JSON_PATH" "benchmark")"
+    else
+        benchmark_json="$workflow_json"
     fi
+
+    local benchmark_dir="$WORKSPACE_DIR/vast-pyworker/workers/comfyui-json/misc"
+    while [[ ! -d "$benchmark_dir" ]]; do
+        sleep 1
+    done
+
+    printf '%s\n' "$benchmark_json" > "$benchmark_dir/benchmark.json"
+    log "Wrote benchmark workflow to $benchmark_dir/benchmark.json"
 }
 
 main() {
