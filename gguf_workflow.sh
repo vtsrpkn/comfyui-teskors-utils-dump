@@ -171,18 +171,20 @@ function provisioning_get_files() {
 function provisioning_fix_rgthree_nodes_mode() {
     local settings_path="${COMFYUI_DIR}/user/default/comfy.settings.json"
     local settings_python_bin="${SETTINGS_PYTHON_BIN:-python3}"
+    local rgthree_config_path="${COMFYUI_DIR}/custom_nodes/rgthree-comfy/rgthree_config.json"
 
     if ! command -v "${settings_python_bin}" >/dev/null 2>&1; then
         settings_python_bin="python"
     fi
 
     echo "Отключаем Nodes 2.0 для совместимости с rgthree-comfy..."
-    "${settings_python_bin}" - <<'PY' "${settings_path}"
+    "${settings_python_bin}" - <<'PY' "${settings_path}" "${rgthree_config_path}"
 import json
 import sys
 from pathlib import Path
 
 settings_path = Path(sys.argv[1])
+rgthree_config_path = Path(sys.argv[2])
 settings_path.parent.mkdir(parents=True, exist_ok=True)
 
 settings = {}
@@ -197,6 +199,31 @@ if settings_path.exists():
 settings["Comfy.VueNodes.Enabled"] = False
 settings_path.write_text(
     json.dumps(settings, ensure_ascii=False, indent=2) + "\n",
+    encoding="utf-8",
+)
+
+rgthree_config = {}
+if rgthree_config_path.exists():
+    try:
+        loaded = json.loads(rgthree_config_path.read_text(encoding="utf-8"))
+        if isinstance(loaded, dict):
+            rgthree_config = loaded
+    except Exception:
+        rgthree_config = {}
+
+announcements = rgthree_config.get("announcements")
+if not isinstance(announcements, dict):
+    announcements = {}
+rgthree_nodes_20 = announcements.get("comfy-nodes-20")
+if not isinstance(rgthree_nodes_20, dict):
+    rgthree_nodes_20 = {}
+rgthree_nodes_20["incompatible"] = False
+announcements["comfy-nodes-20"] = rgthree_nodes_20
+rgthree_config["announcements"] = announcements
+
+rgthree_config_path.parent.mkdir(parents=True, exist_ok=True)
+rgthree_config_path.write_text(
+    json.dumps(rgthree_config, ensure_ascii=False, indent=2) + "\n",
     encoding="utf-8",
 )
 PY
