@@ -168,10 +168,45 @@ function provisioning_get_files() {
     done
 }
 
+function provisioning_fix_rgthree_nodes_mode() {
+    local settings_path="${COMFYUI_DIR}/user/default/comfy.settings.json"
+    local settings_python_bin="${SETTINGS_PYTHON_BIN:-python3}"
+
+    if ! command -v "${settings_python_bin}" >/dev/null 2>&1; then
+        settings_python_bin="python"
+    fi
+
+    echo "Отключаем Nodes 2.0 для совместимости с rgthree-comfy..."
+    "${settings_python_bin}" - <<'PY' "${settings_path}"
+import json
+import sys
+from pathlib import Path
+
+settings_path = Path(sys.argv[1])
+settings_path.parent.mkdir(parents=True, exist_ok=True)
+
+settings = {}
+if settings_path.exists():
+    try:
+        loaded = json.loads(settings_path.read_text(encoding="utf-8"))
+        if isinstance(loaded, dict):
+            settings = loaded
+    except Exception:
+        settings = {}
+
+settings["Comfy.VueNodes.Enabled"] = False
+settings_path.write_text(
+    json.dumps(settings, ensure_ascii=False, indent=2) + "\n",
+    encoding="utf-8",
+)
+PY
+}
+
 if [[ ! -f /.noprovisioning ]]; then
     provisioning_start
 fi
 
 echo "=== Запускаем ComfyUI ==="
 cd "${COMFYUI_DIR}"
+provisioning_fix_rgthree_nodes_mode
 python main.py --listen 0.0.0.0 --port 8188
