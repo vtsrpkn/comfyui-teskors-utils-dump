@@ -4,12 +4,11 @@ source /venv/main/bin/activate
 
 WORKSPACE=${WORKSPACE:-/workspace}
 COMFYUI_DIR="${WORKSPACE}/ComfyUI"
-export HF_HUB_ENABLE_HF_TRANSFER="${HF_HUB_ENABLE_HF_TRANSFER:-1}"
 
 echo "=== Starting ComfyUI provisioning (x-mode) ==="
 
 APT_PACKAGES=()           # Optional APT packages to install during provisioning.
-PIP_PACKAGES=("huggingface_hub[hf_transfer]" "hf_transfer")           # Optional global pip packages beyond requirements files.
+PIP_PACKAGES=("huggingface_hub" "hf_xet")           # Optional global pip packages beyond requirements files.
 
 NODES=(
     "https://github.com/kijai/ComfyUI-WanVideoWrapper"
@@ -186,53 +185,50 @@ function provisioning_get_files() {
 function provisioning_get_hf_file() {
     local dir="$1"
     local url="$2"
+    local path="${url#https://huggingface.co/}"
+    local owner="${path%%/*}"
+    local rest="${path#*/}"
+    local repo="${rest%%/*}"
+    rest="${rest#*/}"
 
-    python - "$dir" "$url" <<'PY'
-import os
-import sys
-from pathlib import Path
-from urllib.parse import urlparse
+    if [[ "$path" == "$url" || "$rest" != resolve/* ]]; then
+        echo "unsupported Hugging Face URL: $url"
+        return 1
+    fi
 
-from huggingface_hub import hf_hub_download
+    local after_resolve="${rest#resolve/}"
+    local revision="${after_resolve%%/*}"
+    local filename="${after_resolve#*/}"
+    local repo_id="${owner}/${repo}"
+    local target="${dir}/${filename##*/}"
 
-out_dir = Path(sys.argv[1])
-url = sys.argv[2]
-parts = urlparse(url).path.strip("/").split("/")
+    if [[ -s "$target" ]]; then
+        echo "Already exists: $target"
+        return 0
+    fi
 
-try:
-    resolve_index = parts.index("resolve")
-    repo_id = "/".join(parts[:resolve_index])
-    revision = parts[resolve_index + 1]
-    filename = "/".join(parts[resolve_index + 2:])
-except (ValueError, IndexError):
-    raise SystemExit(f"unsupported Hugging Face URL: {url}")
+    local output
+    if provisioning_has_high_memory; then
+        output=$(HF_XET_HIGH_PERFORMANCE=1 hf download "$repo_id" "$filename" --revision "$revision")
+    else
+        output=$(hf download "$repo_id" "$filename" --revision "$revision")
+    fi
 
-target = out_dir / Path(filename).name
-if target.exists() and target.stat().st_size > 0:
-    print(f"Already exists: {target}")
-    raise SystemExit(0)
+    local downloaded
+    downloaded="$(printf '%s\n' "$output" | tail -n 1)"
+    if [[ ! -f "$downloaded" ]]; then
+        printf '%s\n' "$output"
+        echo "hf download did not return a file path for $url"
+        return 1
+    fi
 
-downloaded = Path(
-    hf_hub_download(
-        repo_id=repo_id,
-        filename=filename,
-        revision=revision,
-        token=os.environ.get("HF_TOKEN") or None,
-    )
-)
+    mkdir -p "$dir"
+    ln "$downloaded" "$target" 2>/dev/null || cp -p "$downloaded" "$target"
+    echo "Downloaded: $target"
+}
 
-target.parent.mkdir(parents=True, exist_ok=True)
-try:
-    os.link(downloaded, target)
-except FileExistsError:
-    pass
-except OSError:
-    import shutil
-
-    shutil.copy2(downloaded, target)
-
-print(f"Downloaded: {target}")
-PY
+function provisioning_has_high_memory() {
+    awk '/MemTotal:/ { exit !($2 > 67108864) }' /proc/meminfo
 }
 
 function apply_node_20_fix() {
