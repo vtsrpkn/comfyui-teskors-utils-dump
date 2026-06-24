@@ -4,11 +4,12 @@ source /venv/main/bin/activate
 
 WORKSPACE=${WORKSPACE:-/workspace}
 COMFYUI_DIR="${WORKSPACE}/ComfyUI"
+export HF_HUB_ENABLE_HF_TRANSFER="${HF_HUB_ENABLE_HF_TRANSFER:-1}"
 
 echo "=== Starting ComfyUI provisioning (x-mode) ==="
 
 APT_PACKAGES=()           # Optional APT packages to install during provisioning.
-PIP_PACKAGES=()           # Optional global pip packages beyond requirements files.
+PIP_PACKAGES=("huggingface_hub[hf_transfer]" "hf_transfer")           # Optional global pip packages beyond requirements files.
 
 NODES=(
     "https://github.com/kijai/ComfyUI-WanVideoWrapper"
@@ -173,9 +174,65 @@ function provisioning_get_files() {
             auth_header="--header=Authorization: Bearer $CIVITAI_TOKEN"
         fi
 
-        wget $auth_header -nc --content-disposition --show-progress -e dotbytes=4M -P "$dir" "$url" || echo " [!] Download failed: $url"
+        if [[ "$url" =~ huggingface\.co ]]; then
+            provisioning_get_hf_file "$dir" "$url" || wget $auth_header -nc --content-disposition --show-progress -e dotbytes=4M -P "$dir" "$url" || echo " [!] Download failed: $url"
+        else
+            wget $auth_header -nc --content-disposition --show-progress -e dotbytes=4M -P "$dir" "$url" || echo " [!] Download failed: $url"
+        fi
         echo ""
     done
+}
+
+function provisioning_get_hf_file() {
+    local dir="$1"
+    local url="$2"
+
+    python - "$dir" "$url" <<'PY'
+import os
+import sys
+from pathlib import Path
+from urllib.parse import urlparse
+
+from huggingface_hub import hf_hub_download
+
+out_dir = Path(sys.argv[1])
+url = sys.argv[2]
+parts = urlparse(url).path.strip("/").split("/")
+
+try:
+    resolve_index = parts.index("resolve")
+    repo_id = "/".join(parts[:resolve_index])
+    revision = parts[resolve_index + 1]
+    filename = "/".join(parts[resolve_index + 2:])
+except (ValueError, IndexError):
+    raise SystemExit(f"unsupported Hugging Face URL: {url}")
+
+target = out_dir / Path(filename).name
+if target.exists() and target.stat().st_size > 0:
+    print(f"Already exists: {target}")
+    raise SystemExit(0)
+
+downloaded = Path(
+    hf_hub_download(
+        repo_id=repo_id,
+        filename=filename,
+        revision=revision,
+        token=os.environ.get("HF_TOKEN") or None,
+    )
+)
+
+target.parent.mkdir(parents=True, exist_ok=True)
+try:
+    os.link(downloaded, target)
+except FileExistsError:
+    pass
+except OSError:
+    import shutil
+
+    shutil.copy2(downloaded, target)
+
+print(f"Downloaded: {target}")
+PY
 }
 
 function apply_node_20_fix() {
