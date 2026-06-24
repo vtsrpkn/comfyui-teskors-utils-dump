@@ -4,6 +4,7 @@ source /venv/main/bin/activate
 
 WORKSPACE=${WORKSPACE:-/workspace}
 COMFYUI_DIR="${WORKSPACE}/ComfyUI"
+HF_CACHE_DIR="${HF_CACHE_DIR:-${WORKSPACE}/.cache/huggingface}"
 
 echo "=== Starting ComfyUI provisioning (x-mode) ==="
 
@@ -207,11 +208,21 @@ function provisioning_get_hf_file() {
         return 0
     fi
 
+    local hf_args=(
+        download "$repo_id" "$filename"
+        --revision "$revision"
+        --cache-dir "$HF_CACHE_DIR"
+        --max-workers "$(provisioning_hf_max_workers)"
+    )
+    if [[ -n "$HF_TOKEN" ]]; then
+        hf_args+=(--token "$HF_TOKEN")
+    fi
+
     local output
     if provisioning_has_high_memory; then
-        output=$(HF_XET_HIGH_PERFORMANCE=1 hf download "$repo_id" "$filename" --revision "$revision")
+        output=$(HF_XET_HIGH_PERFORMANCE=1 hf "${hf_args[@]}")
     else
-        output=$(hf download "$repo_id" "$filename" --revision "$revision")
+        output=$(hf "${hf_args[@]}")
     fi
 
     local downloaded
@@ -229,6 +240,14 @@ function provisioning_get_hf_file() {
 
 function provisioning_has_high_memory() {
     awk '/MemTotal:/ { exit !($2 > 67108864) }' /proc/meminfo
+}
+
+function provisioning_hf_max_workers() {
+    if provisioning_has_high_memory; then
+        echo "${HF_DOWNLOAD_MAX_WORKERS:-32}"
+    else
+        echo "${HF_DOWNLOAD_MAX_WORKERS:-8}"
+    fi
 }
 
 function apply_node_20_fix() {
