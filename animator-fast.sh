@@ -5,11 +5,12 @@ source /venv/main/bin/activate
 WORKSPACE=${WORKSPACE:-/workspace}
 COMFYUI_DIR="${WORKSPACE}/ComfyUI"
 HF_CACHE_DIR="${HF_CACHE_DIR:-${WORKSPACE}/.cache/huggingface}"
+export HF_HUB_ENABLE_HF_TRANSFER="${HF_HUB_ENABLE_HF_TRANSFER:-1}"
 
 echo "=== Starting ComfyUI provisioning (x-mode) ==="
 
 APT_PACKAGES=()           # Optional APT packages to install during provisioning.
-PIP_PACKAGES=("huggingface_hub" "hf_xet")           # Optional global pip packages beyond requirements files.
+PIP_PACKAGES=("huggingface_hub" "hf_xet" "hf_transfer")           # Optional global pip packages beyond requirements files.
 
 NODES=(
     "https://github.com/kijai/ComfyUI-WanVideoWrapper"
