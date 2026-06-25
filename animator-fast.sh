@@ -11,7 +11,7 @@ export HF_XET_HIGH_PERFORMANCE="${HF_XET_HIGH_PERFORMANCE:-1}"
 echo "=== Starting ComfyUI provisioning (x-mode) ==="
 
 APT_PACKAGES=()           # Optional APT packages to install during provisioning.
-PIP_PACKAGES=("huggingface_hub" "hf_xet" "hf_transfer")           # Optional global pip packages beyond requirements files.
+PIP_PACKAGES=("huggingface_hub[cli]" "hf_xet" "hf_transfer")           # Optional global pip packages beyond requirements files.
 
 NODES=(
     "https://github.com/kijai/ComfyUI-WanVideoWrapper"
