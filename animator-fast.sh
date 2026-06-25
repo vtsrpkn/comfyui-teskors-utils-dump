@@ -169,17 +169,17 @@ function provisioning_get_files() {
 
     for url in "${files[@]}"; do
         echo "→ $url"
-        local auth_header=""
+        local wget_args=(-nc --content-disposition --show-progress -e dotbytes=4M -P "$dir")
         if [[ -n "$HF_TOKEN" && "$url" =~ huggingface\.co ]]; then
-            auth_header="--header=Authorization: Bearer $HF_TOKEN"
+            wget_args+=("--header=Authorization: Bearer $HF_TOKEN")
         elif [[ -n "$CIVITAI_TOKEN" && "$url" =~ civitai\.com ]]; then
-            auth_header="--header=Authorization: Bearer $CIVITAI_TOKEN"
+            wget_args+=("--header=Authorization: Bearer $CIVITAI_TOKEN")
         fi
 
         if [[ "$url" =~ huggingface\.co ]]; then
-            provisioning_get_hf_file "$dir" "$url" || wget $auth_header -nc --content-disposition --show-progress -e dotbytes=4M -P "$dir" "$url" || echo " [!] Download failed: $url"
+            provisioning_get_hf_file "$dir" "$url" || wget "${wget_args[@]}" "$url" || echo " [!] Download failed: $url"
         else
-            wget $auth_header -nc --content-disposition --show-progress -e dotbytes=4M -P "$dir" "$url" || echo " [!] Download failed: $url"
+            wget "${wget_args[@]}" "$url" || echo " [!] Download failed: $url"
         fi
         echo ""
     done
@@ -215,6 +215,7 @@ function provisioning_get_hf_file() {
         --revision "$revision"
         --cache-dir "$HF_CACHE_DIR"
         --max-workers "$(provisioning_hf_max_workers)"
+        --quiet
     )
     if [[ -n "$HF_TOKEN" ]]; then
         hf_args+=(--token "$HF_TOKEN")
