@@ -6,6 +6,7 @@ WORKSPACE=${WORKSPACE:-/workspace}
 COMFYUI_DIR="${WORKSPACE}/ComfyUI"
 HF_CACHE_DIR="${HF_CACHE_DIR:-${WORKSPACE}/.cache/huggingface}"
 export HF_HUB_ENABLE_HF_TRANSFER="${HF_HUB_ENABLE_HF_TRANSFER:-1}"
+export HF_XET_HIGH_PERFORMANCE="${HF_XET_HIGH_PERFORMANCE:-1}"
 
 echo "=== Starting ComfyUI provisioning (x-mode) ==="
 
@@ -220,11 +221,7 @@ function provisioning_get_hf_file() {
     fi
 
     local output
-    if provisioning_has_high_memory; then
-        output=$(HF_XET_HIGH_PERFORMANCE=1 hf "${hf_args[@]}")
-    else
-        output=$(hf "${hf_args[@]}")
-    fi
+    output=$(hf "${hf_args[@]}")
 
     local downloaded
     downloaded="$(printf '%s\n' "$output" | tail -n 1)"
