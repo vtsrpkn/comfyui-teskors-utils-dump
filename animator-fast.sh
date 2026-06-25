@@ -176,10 +176,25 @@ function provisioning_get_files() {
             wget_args+=("--header=Authorization: Bearer $CIVITAI_TOKEN")
         fi
 
-        if [[ "$url" =~ huggingface\.co ]]; then
-            provisioning_get_hf_file "$dir" "$url" || wget "${wget_args[@]}" "$url" || echo " [!] Download failed: $url"
-        else
-            wget "${wget_args[@]}" "$url" || echo " [!] Download failed: $url"
+        local ok=0
+        for attempt in 1 2 3; do
+            if [[ "$url" =~ huggingface\.co ]]; then
+                if provisioning_get_hf_file "$dir" "$url" || wget "${wget_args[@]}" "$url"; then
+                    ok=1
+                    break
+                fi
+            else
+                if wget "${wget_args[@]}" "$url"; then
+                    ok=1
+                    break
+                fi
+            fi
+            echo " [!] Download attempt ${attempt}/3 failed: $url"
+            sleep $((attempt * 10))
+        done
+        if [[ "$ok" -ne 1 ]]; then
+            echo "ERROR downloading $url"
+            return 1
         fi
         echo ""
     done
