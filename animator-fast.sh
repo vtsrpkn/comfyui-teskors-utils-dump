@@ -246,10 +246,16 @@ function provisioning_get_hf_file() {
         echo "hf download did not return a file path for $url"
         return 1
     fi
+    local source_path
+    source_path="$(readlink -f "$downloaded")"
+    if [[ ! -f "$source_path" ]]; then
+        echo "hf download returned an unresolved file path for $url: $downloaded"
+        return 1
+    fi
 
     mkdir -p "$dir"
     rm -f "$target"
-    ln "$downloaded" "$target" 2>/dev/null || cp -p "$downloaded" "$target"
+    ln "$source_path" "$target" 2>/dev/null || cp -p "$source_path" "$target"
     echo "Downloaded: $target"
 }
 
