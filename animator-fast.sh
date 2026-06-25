@@ -248,6 +248,7 @@ function provisioning_get_hf_file() {
     fi
 
     mkdir -p "$dir"
+    rm -f "$target"
     ln "$downloaded" "$target" 2>/dev/null || cp -p "$downloaded" "$target"
     echo "Downloaded: $target"
 }
