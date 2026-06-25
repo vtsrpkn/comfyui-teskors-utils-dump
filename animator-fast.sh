@@ -11,7 +11,7 @@ export HF_XET_HIGH_PERFORMANCE="${HF_XET_HIGH_PERFORMANCE:-1}"
 echo "=== Starting ComfyUI provisioning (x-mode) ==="
 
 APT_PACKAGES=()           # Optional APT packages to install during provisioning.
-PIP_PACKAGES=("huggingface_hub[cli]" "hf_xet" "hf_transfer")           # Optional global pip packages beyond requirements files.
+PIP_PACKAGES=("huggingface_hub[cli]==1.21.0" "hf_xet==1.5.1" "hf_transfer==0.1.9" "onnxruntime-gpu==1.26.0" "numpy>=2.0,<2.5")           # Optional global pip packages beyond requirements files.
 
 NODES=(
     "https://github.com/kijai/ComfyUI-WanVideoWrapper"
@@ -284,4 +284,4 @@ apply_node_20_fix
 # Start ComfyUI.
 echo "=== Starting ComfyUI ==="
 cd "${COMFYUI_DIR}"
-python main.py --listen 0.0.0.0 --port 8188
+python main.py --listen 0.0.0.0 ${COMFYUI_ARGS:---port 8188}
